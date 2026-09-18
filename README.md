@@ -16,13 +16,13 @@
 
 直接用浏览器打开 `照片LUT调色工具.html`（单文件、零依赖、离线可用）。
 
-或下载各平台安装包（见 Releases）：
+或下载各平台安装包（见 [Releases](https://github.com/zhouyu131425/lut-tool/releases)）：
 
 | 平台 | 安装包 |
 |---|---|
-| macOS（Apple 芯片） | `照片LUT调色工具-macOS-arm64.dmg` |
-| Windows | `照片LUT调色工具-win-x64.exe`（安装版）/ 绿色版 zip |
-| Linux | `照片LUT调色工具-linux-x86_64.AppImage` |
+| macOS（Apple 芯片） | `LutTool-macOS-arm64.dmg` |
+| Windows | `LutTool-1.0.0-win-x64.exe`（安装版）/ `LutTool-win-x64-portable.zip`（绿色版） |
+| Linux | `LutTool-linux-x86_64.AppImage` |
 | iOS / Android | Xcode / Android Studio 工程源码（见 `ios/`、`android/`） |
 
 ## 目录结构
