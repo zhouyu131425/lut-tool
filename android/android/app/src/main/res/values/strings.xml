@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">照片LUT调色工具</string>
+    <string name="title_activity_main">照片LUT调色工具</string>
+    <string name="package_name">com.local.luttool</string>
+    <string name="custom_url_scheme">com.local.luttool</string>
+</resources>

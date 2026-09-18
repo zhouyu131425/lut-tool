@@ -1,0 +1,68 @@
+{
+  "name": "lut-tool",
+  "productName": "照片LUT调色工具",
+  "version": "1.0.0",
+  "description": "照片LUT调色工具：上传照片按 LUT 调色、批量导出、对比分割、构图参考线",
+  "main": "main.js",
+  "author": "LutTool",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.local.luttool",
+    "productName": "照片LUT调色工具",
+    "files": [
+      "main.js",
+      "照片LUT调色工具.html"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["arm64"] },
+        { "target": "zip", "arch": ["arm64"] }
+      ],
+      "category": "public.app-category.photography",
+      "icon": "build/icon.icns",
+      "identity": null
+    },
+    "dmg": {
+      "title": "照片LUT调色工具 ${version}",
+      "contents": [
+        { "x": 140, "y": 190 },
+        { "x": 380, "y": 190, "type": "link", "path": "/Applications" }
+      ]
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "zip", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "照片LUT调色工具"
+    },
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] }
+      ],
+      "category": "Graphics",
+      "icon": "build/icon.png",
+      "maintainer": "LutTool"
+    },
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
+  }
+}

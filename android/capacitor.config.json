@@ -1,0 +1,11 @@
+{
+  "appId": "com.local.luttool",
+  "appName": "照片LUT调色工具",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": true
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
