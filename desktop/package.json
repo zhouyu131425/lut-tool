@@ -1,7 +1,7 @@
 {
   "name": "lut-tool",
   "productName": "照片LUT调色工具",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "照片LUT调色工具：上传照片按 LUT 调色、批量导出、对比分割、构图参考线",
   "main": "main.js",
   "author": "LutTool",

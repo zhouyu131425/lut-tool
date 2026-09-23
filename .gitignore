@@ -10,6 +10,7 @@ android/android/.idea/
 android/android/local.properties
 
 # 安装包产物（走 GitHub Releases 发布，不入库）
+*.app/
 *.dmg
 *.exe
 *.AppImage

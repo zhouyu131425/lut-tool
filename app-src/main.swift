@@ -191,7 +191,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     // Core Image RAW 解码：CIRAWFilter 支持 DNG/CR2/CR3/NEF/ARW/RAF/ORF/RW2 等 → 缩放 ≤2400 → JPEG
     private func decodeRawToJpeg(_ url: URL) -> Data? {
         guard let out = (CIRAWFilter(imageURL: url)?.outputImage) ?? CIImage(contentsOf: url) else { return nil }
-        var extent = out.extent
+        let extent = out.extent
         if extent.width < 2 || extent.height < 2 { return nil }
         var image = out
         let maxDim = 2400.0

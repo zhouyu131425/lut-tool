@@ -120,10 +120,16 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
 .processing.show{display:flex}
 .stage-meta{font-size:12px;color:#6d7480;margin-top:8px;display:flex;gap:14px;flex-wrap:wrap}
 .stage-meta b{color:var(--muted);font-weight:600}
+.stage .notes{margin-top:14px;margin-bottom:0}
+.stage .notes ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:22px}
 /* ===== 批量队列 ===== */
-.batch-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.batch-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.batch-nav{display:flex;gap:6px;align-items:center;flex:0 0 auto}
+.batch-nav .btn{padding:5px 8px;font-size:12px}
 .batch-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:264px;overflow:auto;margin-bottom:12px;padding-right:2px}
-.batch-item{display:flex;gap:8px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:6px;min-width:0}
+.batch-item{display:flex;gap:8px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:6px;min-width:0;cursor:pointer;transition:border-color .12s,background .12s}
+.batch-item:hover{border-color:#4a5262}
+.batch-item.active{border-color:var(--accent);background:rgba(242,163,60,.10)}
 .batch-item img{width:44px;height:44px;object-fit:cover;border-radius:6px;flex:0 0 auto;background:#000}
 .bi-meta{flex:1;min-width:0;font-size:11.5px;color:var(--muted);line-height:1.45}
 .bi-meta b{display:block;color:var(--text);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -174,6 +180,7 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
 @media (max-width:920px){
   .layout{grid-template-columns:1fr}
   .viewer{aspect-ratio:4/3}
+  .stage .notes ul{grid-template-columns:1fr}
 }
 @media (max-width:520px){
   .app{padding:12px 12px 30px}
@@ -189,6 +196,8 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
   .lut-desc{font-size:13px}
   .notes li{font-size:13px}
   .card h2{font-size:16px}
+  .batch-head{align-items:flex-start;flex-wrap:wrap}
+  .batch-nav{width:100%;flex-wrap:wrap}
 }
 </style>
 </head>
@@ -232,8 +241,13 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
           <div class="divider"></div>
           <div class="batch-head">
             <h3 style="margin:0">批量队列（<span id="batchCount">0</span> 张）</h3>
-            <button class="btn ghost" id="clearBatch" type="button">清空</button>
+            <div class="batch-nav">
+              <button class="btn ghost" id="batchPrev" type="button" disabled>上一张</button>
+              <button class="btn ghost" id="batchNext" type="button" disabled>下一张</button>
+              <button class="btn ghost" id="clearBatch" type="button">清空</button>
+            </div>
           </div>
+          <p class="hint" style="margin:-2px 0 8px">点击队列中的照片可切换预览。</p>
           <div class="batch-list" id="batchList"></div>
           <button class="btn primary" id="batchExport" type="button" disabled>批量导出 ZIP（套用当前 LUT + 强度）</button>
           <p class="hint" id="batchProgress"></p>
@@ -288,18 +302,6 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
         <p class="hint" id="engineInfo"></p>
       </section>
 
-      <!-- 说明 -->
-      <section class="card notes">
-        <h3>说明</h3>
-        <ul>
-          <li>内置「S-Log3 → Rec.709/sRGB」按索尼官方 S-Log3 公式与 S-Gamut3.Cine 色域矩阵生成，属技术性还原；其余内置风格为程序生成的风格化近似，并非索尼官方 LUT。</li>
-          <li>富士胶片模拟（Classic Neg./Classic Chrome/Reala Ace/Velvia/ASTIA/PROVIA/ETERNA）基于富士官方 F-Log2C 3D-LUT 色彩科学，按官方 F-Log2C 编码公式复合为照片（sRGB/Rec.709）可直接套用的内置预设；Nostalgic Neg. 官方暂未随 LUT 发布。</li>
-          <li>针对苹果手机：支持 HEIC / HEIF / ProRAW（DNG）识别与提示，「iPhone 通透」预设面向 iPhone 出片优化；RAW 请用 macOS App 版打开（内置解码）。</li>
-          <li>支持一次选择多张照片（或拖入多个文件）批量导出 ZIP，全部套用当前 LUT 与强度，本地打包、不上传。</li>
-          <li>自定义 .cube 支持 3D（17/33/65 点）与 1D 两种格式，含 TITLE / DOMAIN_MIN / DOMAIN_MAX。</li>
-          <li>全部处理都在浏览器本地完成，不会上传任何照片。</li>
-        </ul>
-      </section>
     </aside>
 
     <!-- ===== 右侧预览 ===== -->
@@ -318,6 +320,18 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
         </div>
       </div>
       <div class="stage-meta" id="stageMeta"></div>
+      <!-- 说明（放在预览画面下方，避免左栏过长影响窗口布局） -->
+      <section class="card notes" id="notesPanel">
+        <h3>说明</h3>
+        <ul>
+          <li>内置「S-Log3 → Rec.709/sRGB」按索尼官方 S-Log3 公式与 S-Gamut3.Cine 色域矩阵生成，属技术性还原；其余内置风格为程序生成的风格化近似，并非索尼官方 LUT。</li>
+          <li>富士胶片模拟（Classic Neg./Classic Chrome/Reala Ace/Velvia/ASTIA/PROVIA/ETERNA）基于富士官方 F-Log2C 3D-LUT 色彩科学，按官方 F-Log2C 编码公式复合为照片（sRGB/Rec.709）可直接套用的内置预设；Nostalgic Neg. 官方暂未随 LUT 发布。</li>
+          <li>针对苹果手机：支持 HEIC / HEIF / ProRAW（DNG）识别与提示，「iPhone 通透」预设面向 iPhone 出片优化；RAW 请用 macOS App 版打开（内置解码）。</li>
+          <li>支持一次选择多张照片（或拖入多个文件）批量导出 ZIP，全部套用当前 LUT 与强度，本地打包、不上传。</li>
+          <li>自定义 .cube 支持 3D（17/33/65 点）与 1D 两种格式，含 TITLE / DOMAIN_MIN / DOMAIN_MAX。</li>
+          <li>全部处理都在浏览器本地完成，不会上传任何照片。</li>
+        </ul>
+      </section>
     </section>
   </main>
 </div>
@@ -862,7 +876,8 @@ function initUI(){
   var photoDrop=$('photoDrop'), photoInput=$('photoInput'), photoInfo=$('photoInfo'),
       photoThumb=$('photoThumb'), photoName=$('photoName'), photoMeta=$('photoMeta'), changePhoto=$('changePhoto');
   var batchPanel=$('batchPanel'), batchCount=$('batchCount'), batchList=$('batchList'),
-      clearBatch=$('clearBatch'), batchExport=$('batchExport'), batchProgress=$('batchProgress');
+      clearBatch=$('clearBatch'), batchExport=$('batchExport'), batchProgress=$('batchProgress'),
+      batchPrev=$('batchPrev'), batchNext=$('batchNext');
   var presetGrid=$('presetGrid'), lutDrop=$('lutDrop'), lutInput=$('lutInput'),
       lutInfo=$('lutInfo'), lutName=$('lutName'), lutMeta=$('lutMeta'), clearLut=$('clearLut'), lutDesc=$('lutDesc'),
       backupExport=$('backupExport'), backupInput=$('backupInput');
@@ -878,7 +893,7 @@ function initUI(){
     img:null, imgVersion:0, workW:0, workH:0, origW:0, origH:0,
     lut:null, strength:1, view:'graded', split:0.5, overlay:'none',
     engine:'cpu', objectUrl:null, dragging:false, rendering:false,
-    batch:[], batchVersion:1
+    batch:[], batchVersion:1, activeBatchIndex:-1, loadToken:0
   };
 
   var presets=buildPresets();
@@ -938,7 +953,7 @@ function initUI(){
     var imgs=Array.prototype.slice.call(files).filter(isPhotoLike);
     if(!imgs.length){ toast('请选择图片文件（支持 JPG/PNG/WebP/HEIC 与 RAW）',true); return; }
     var added=imgs.filter(addToBatch);
-    if(added.length){ loadPhoto(added[0]); toast('已加入批量队列 '+added.length+' 张'); }
+    if(added.length){ state.activeBatchIndex=state.batch.findIndex(function(it){ return it.file===added[0]; }); renderBatch(); loadPhoto(added[0]); toast('已加入批量队列 '+added.length+' 张'); }
   }
   // 原生壳注入入口：macOS App 菜单"打开照片…/打开 LUT…"（Swift NSOpenPanel → base64 → 注入）
   function dataUrlToFile(dataUrl,name,type){
@@ -962,12 +977,12 @@ function initUI(){
     var imgs=Array.prototype.slice.call(files).filter(isPhotoLike);
     if(!imgs.length){ toast('请放入图片文件（支持 JPG/PNG/WebP/HEIC 与 RAW）',true); return; }
     var added=imgs.filter(addToBatch);
-    if(added.length){ loadPhoto(added[0]); toast('已加入批量队列 '+added.length+' 张'); }
+    if(added.length){ state.activeBatchIndex=state.batch.findIndex(function(it){ return it.file===added[0]; }); renderBatch(); loadPhoto(added[0]); toast('已加入批量队列 '+added.length+' 张'); }
   });
 
   /* ---------- 批量队列 ---------- */
   function addToBatch(file){
-    if(file.type.indexOf('image/')!==0){ toast('已跳过非图片文件：'+file.name,true); return null; }
+    if(!isPhotoLike(file)){ toast('已跳过非图片文件：'+file.name,true); return null; }
     var url=URL.createObjectURL(file);
     var item={ file:file, name:file.name, objectUrl:url, thumb:'', w:0, h:0, status:'待处理' };
     var img=new Image();
@@ -988,12 +1003,18 @@ function initUI(){
   }
   function renderBatch(){
     var n=state.batch.length;
+    if(n===0) state.activeBatchIndex=-1;
+    else if(state.activeBatchIndex<0) state.activeBatchIndex=0;
+    else if(state.activeBatchIndex>=n) state.activeBatchIndex=n-1;
     batchPanel.hidden=n===0;
     batchCount.textContent=n;
     batchExport.disabled=n===0;
+    batchPrev.disabled=n===0 || state.activeBatchIndex<=0;
+    batchNext.disabled=n===0 || state.activeBatchIndex>=n-1;
     batchList.innerHTML='';
     state.batch.forEach(function(item,i){
-      var el=document.createElement('div'); el.className='batch-item';
+      var el=document.createElement('div'); el.className='batch-item'+(i===state.activeBatchIndex?' active':'');
+      el.tabIndex=0; el.setAttribute('role','button'); el.title='点击预览：'+item.name;
       var im=document.createElement('img'); im.src=item.thumb||''; im.alt='';
       var meta=document.createElement('div'); meta.className='bi-meta';
       var nb=document.createElement('b'); nb.textContent=item.name;
@@ -1003,19 +1024,49 @@ function initUI(){
       st.className='bi-status'+(item.status==='完成'?' done':(item.status==='失败'?' err':''));
       st.textContent=item.status;
       var rm=document.createElement('button'); rm.type='button'; rm.className='bi-rm'; rm.title='移除'; rm.textContent='×';
-      rm.addEventListener('click',function(){ removeBatchItem(i); });
+      rm.addEventListener('click',function(ev){ ev.stopPropagation(); removeBatchItem(i); });
+      el.addEventListener('click',function(){ selectBatchItem(i); });
+      el.addEventListener('keydown',function(ev){ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); selectBatchItem(i); } });
       el.appendChild(im); el.appendChild(meta); el.appendChild(st); el.appendChild(rm);
       batchList.appendChild(el);
     });
   }
+  function selectBatchItem(i){
+    if(i<0||i>=state.batch.length) return;
+    state.activeBatchIndex=i;
+    renderBatch();
+    loadPhoto(state.batch[i].file);
+  }
+  function resetPhotoPreview(){
+    state.loadToken++;
+    if(state.objectUrl){ URL.revokeObjectURL(state.objectUrl); state.objectUrl=null; }
+    state.img=null; state.imgVersion++;
+    origCanvas.width=1; origCanvas.height=1;
+    gradedCanvas.width=1; gradedCanvas.height=1;
+    viewer.classList.remove('hasimg');
+    emptyState.style.display='';
+    photoInfo.hidden=true;
+    photoDrop.style.display='';
+    download.disabled=true;
+    stageMeta.innerHTML='';
+    applyView();
+  }
   function removeBatchItem(i){
+    var wasActive=(i===state.activeBatchIndex);
     var item=state.batch[i];
     if(item){ URL.revokeObjectURL(item.objectUrl); state.batch.splice(i,1); }
+    if(!state.batch.length){ state.activeBatchIndex=-1; resetPhotoPreview(); renderBatch(); return; }
+    if(i<state.activeBatchIndex) state.activeBatchIndex--;
+    if(wasActive) state.activeBatchIndex=Math.min(i,state.batch.length-1);
     renderBatch();
+    if(wasActive) selectBatchItem(state.activeBatchIndex);
   }
+  batchPrev.addEventListener('click',function(){ if(state.activeBatchIndex>0) selectBatchItem(state.activeBatchIndex-1); });
+  batchNext.addEventListener('click',function(){ if(state.activeBatchIndex<state.batch.length-1) selectBatchItem(state.activeBatchIndex+1); });
   clearBatch.addEventListener('click',function(){
     state.batch.forEach(function(it){ URL.revokeObjectURL(it.objectUrl); });
-    state.batch=[]; batchProgress.textContent='';
+    state.batch=[]; state.activeBatchIndex=-1; batchProgress.textContent='';
+    resetPhotoPreview();
     renderBatch();
   });
   function setBatchStatus(i,text,cls){
@@ -1108,8 +1159,10 @@ function initUI(){
 
   function loadPhoto(file){
     var url=URL.createObjectURL(file);
+    var token=++state.loadToken;
     var img=new Image();
     img.onload=function(){
+      if(token!==state.loadToken){ URL.revokeObjectURL(url); return; }
       if(state.objectUrl) URL.revokeObjectURL(state.objectUrl);
       state.objectUrl=url;
       // iPhone 拍摄格式识别提示（HEIC / HEIF / ProRAW DNG）
@@ -1139,7 +1192,7 @@ function initUI(){
       applyView();
       render();
     };
-    img.onerror=function(){ URL.revokeObjectURL(url); if(RAW_EXT.test(file.name)){ toast('RAW 无法在浏览器内解码，请用 macOS App 版「文件 → 打开照片」打开（内置解码）',true); } else { toast('图片读取失败，请换一张',true); } };
+    img.onerror=function(){ URL.revokeObjectURL(url); if(token!==state.loadToken) return; if(RAW_EXT.test(file.name)){ toast('RAW 无法在浏览器内解码，请用 macOS App 版「文件 → 打开照片」打开（内置解码）',true); } else { toast('图片读取失败，请换一张',true); } };
     img.src=url;
   }
 

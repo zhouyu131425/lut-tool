@@ -4,6 +4,12 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Codex/沙箱环境通常禁止写 ~/.cache；将 Swift/Clang 模块缓存放到可写的临时目录。
+CACHE_ROOT="${TMPDIR:-/tmp}/luttool-swift-cache"
+mkdir -p "$CACHE_ROOT/clang" "$CACHE_ROOT/swift"
+export CLANG_MODULE_CACHE_PATH="$CACHE_ROOT/clang"
+export SWIFT_MODULECACHE_PATH="$CACHE_ROOT/swift"
+
 SRC_HTML="../照片LUT调色工具.html"          # 工具页面（相对 app-src 的上级目录）
 APP_NAME="照片LUT调色工具"
 APP_OUT="../${APP_NAME}.app"
