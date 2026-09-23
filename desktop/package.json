@@ -8,9 +8,15 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
+    "sync:html": "node ../scripts/sync-html.mjs",
+    "check:html": "node ../scripts/sync-html.mjs --check",
+    "prestart": "npm run sync:html",
     "dist:mac": "electron-builder --mac",
+    "predist:mac": "npm run sync:html",
     "dist:win": "electron-builder --win",
-    "dist:linux": "electron-builder --linux"
+    "predist:win": "npm run sync:html",
+    "dist:linux": "electron-builder --linux",
+    "predist:linux": "npm run sync:html"
   },
   "devDependencies": {
     "electron": "^33.0.0",

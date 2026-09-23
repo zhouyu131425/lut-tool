@@ -28,19 +28,36 @@
 ## 目录结构
 
 ```
-├── 照片LUT调色工具.html    # 主程序（单文件自包含）
+├── 照片LUT调色工具.html    # 主程序（唯一源文件，单文件自包含）
 ├── app-src/                # macOS 原生 App（Swift + WKWebView）
 ├── desktop/                # Windows/Linux 跨平台版（Electron）
 ├── ios/                    # iOS 工程（Xcode）
-└── android/                # Android 工程（Capacitor / Android Studio）
+├── android/                # Android 工程（Capacitor / Android Studio）
+└── scripts/                # 平台页面同步与一致性校验
+```
+
+## 同步平台页面
+
+`照片LUT调色工具.html` 是唯一源文件。不要直接编辑 `desktop/`、`ios/`、`android/` 里的页面副本。
+
+同步到所有平台：
+
+```bash
+node scripts/sync-html.mjs
+```
+
+只检查一致性：
+
+```bash
+node scripts/sync-html.mjs --check
 ```
 
 ## 从源码构建
 
 - **macOS**：`cd app-src && bash build.sh`
-- **Windows / Linux**：`cd desktop && npm install && npx electron-builder --win`（或 `--linux`）
-- **iOS**：用 Xcode 打开 `ios/LutTool.xcodeproj`
-- **Android**：用 Android Studio 打开 `android/android`
+- **Windows / Linux**：`cd desktop && npm install && npm run dist:win`（或 `npm run dist:linux`）
+- **iOS**：先运行 `node scripts/sync-html.mjs`，再用 Xcode 打开 `ios/LutTool.xcodeproj`
+- **Android**：先运行 `node scripts/sync-html.mjs`，再用 Android Studio 打开 `android/android`
 
 ## 技术说明
 
