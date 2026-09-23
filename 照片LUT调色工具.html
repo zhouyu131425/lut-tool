@@ -956,16 +956,29 @@ function initUI(){
     if(added.length){ state.activeBatchIndex=state.batch.findIndex(function(it){ return it.file===added[0]; }); renderBatch(); loadPhoto(added[0]); toast('已加入批量队列 '+added.length+' 张'); }
   }
   // 原生壳注入入口：macOS App 菜单"打开照片…/打开 LUT…"（Swift NSOpenPanel → base64 → 注入）
-  function dataUrlToFile(dataUrl,name,type){
+  function dataUrlToFile(payload,name,type){
+    var dataUrl=typeof payload==='string'?payload:(payload&&payload.dataUrl)||'';
+    var fileName=(payload&&payload.name)||name||'photo';
+    var mime=(payload&&payload.type)||'';
+    if(!mime){
+      var m=String(dataUrl).match(/^data:([^;,]+)/);
+      mime=m?m[1]:(type||'');
+    }
     var comma=dataUrl.indexOf(',');
     var bin=atob(dataUrl.slice(comma+1));
     var len=bin.length, arr=new Uint8Array(len);
     for(var i=0;i<len;i++) arr[i]=bin.charCodeAt(i);
-    return new File([arr],name,{type:type});
+    return new File([arr],fileName,{type:mime});
   }
-  window.__loadPhotoData=function(dataUrl,name){
-    try{ var f=dataUrlToFile(dataUrl,name||'photo','image/jpeg'); onPhotoFiles([f]); }
-    catch(e){ toast('照片读取失败',true); }
+  window.__loadPhotoData=function(payload,name){
+    try{
+      var list=Array.isArray(payload)?payload:[payload];
+      var files=list.map(function(item){
+        return dataUrlToFile(item,item.name||name||'photo','image/jpeg');
+      });
+      onPhotoFiles(files);
+    }
+    catch(e){ toast('照片读取失败：'+(e&&e.message||'未知错误'),true); }
   };
   photoInput.addEventListener('change',function(){ if(this.files&&this.files.length){ var fs=Array.prototype.slice.call(this.files); this.value=''; onPhotoFiles(fs); } });
   photoInput2.addEventListener('change',function(){ if(this.files&&this.files.length){ var fs=Array.prototype.slice.call(this.files); this.value=''; onPhotoFiles(fs); } });
@@ -1392,9 +1405,16 @@ function initUI(){
 
   // App 原生壳注入入口：单个 LUT 逐个注入，停顿后统一进入分组确认（浏览器 file input 直接走 handleLutFiles）
   var pendingLuts=[], _lutFlushTimer=null;
-  window.__loadLutData=function(dataUrl,name){
-    try{ pendingLuts.push(dataUrlToFile(dataUrl,name||'lut.cube','text/plain')); clearTimeout(_lutFlushTimer); _lutFlushTimer=setTimeout(flushPendingLuts,1200); }
-    catch(e){ toast('LUT 读取失败',true); }
+  window.__loadLutData=function(payload,name){
+    try{
+      var list=Array.isArray(payload)?payload:[payload];
+      list.forEach(function(item){
+        pendingLuts.push(dataUrlToFile(item,item.name||name||'lut.cube','text/plain'));
+      });
+      clearTimeout(_lutFlushTimer);
+      _lutFlushTimer=setTimeout(flushPendingLuts,1200);
+    }
+    catch(e){ toast('LUT 读取失败：'+(e&&e.message||'未知错误'),true); }
   };
   window.__flushLutImport=function(){ clearTimeout(_lutFlushTimer); flushPendingLuts(); };
   function flushPendingLuts(){
