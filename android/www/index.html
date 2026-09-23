@@ -1052,6 +1052,7 @@ function initUI(){
   }
   function resetPhotoPreview(){
     state.loadToken++;
+    processing.classList.remove('show');
     if(state.objectUrl){ URL.revokeObjectURL(state.objectUrl); state.objectUrl=null; }
     state.img=null; state.imgVersion++;
     origCanvas.width=1; origCanvas.height=1;
@@ -1173,6 +1174,12 @@ function initUI(){
   function loadPhoto(file){
     var url=URL.createObjectURL(file);
     var token=++state.loadToken;
+    // 大图解码可能需要几秒；先给出明确反馈，避免看起来像“点击没反应”。
+    processing.textContent='照片加载中…';
+    processing.classList.add('show');
+    photoInfo.hidden=false;
+    photoName.textContent='照片加载中…';
+    photoMeta.textContent='正在读取图片数据';
     var img=new Image();
     img.onload=function(){
       if(token!==state.loadToken){ URL.revokeObjectURL(url); return; }
@@ -1204,8 +1211,15 @@ function initUI(){
       stageMeta.innerHTML='<span>原图 <b>'+state.origW+'×'+state.origH+'</b></span><span>处理 <b>'+state.workW+'×'+state.workH+'</b></span><span>引擎 <b>'+(state.engine==='webgl2'?'WebGL2':'CPU')+'</b></span><span>处理全部在本地完成</span>';
       applyView();
       render();
+      processing.classList.remove('show');
     };
-    img.onerror=function(){ URL.revokeObjectURL(url); if(token!==state.loadToken) return; if(RAW_EXT.test(file.name)){ toast('RAW 无法在浏览器内解码，请用 macOS App 版「文件 → 打开照片」打开（内置解码）',true); } else { toast('图片读取失败，请换一张',true); } };
+    img.onerror=function(){
+      URL.revokeObjectURL(url);
+      if(token!==state.loadToken) return;
+      processing.classList.remove('show');
+      if(RAW_EXT.test(file.name)){ toast('RAW 无法在浏览器内解码，请用 macOS App 版「文件 → 打开照片」打开（内置解码）',true); }
+      else { toast('图片读取失败，请换一张',true); }
+    };
     img.src=url;
   }
 
