@@ -313,6 +313,37 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
           </div>
         </div>
         <p class="lut-desc" id="lutDesc"></p>
+
+        <details class="pro-panel" id="proPanel">
+          <summary>专业调整 · Resolve 风格</summary>
+          <div class="pro-toolbar">
+            <label><input type="checkbox" id="proEnabled"> 启用专业调整</label>
+            <button class="btn ghost" id="proReset" type="button">重置</button>
+          </div>
+          <div class="pro-grid">
+            <label>曝光（EV）<input type="range" data-pro="exposure" data-default="0" min="-3" max="3" step="0.01" value="0"></label>
+            <label>对比度<input type="range" data-pro="contrast" data-default="0" min="-1" max="1" step="0.01" value="0"></label>
+            <label>对比轴心<input type="range" data-pro="pivot" data-default="0.5" min="0" max="1" step="0.01" value="0.5"></label>
+            <label>色温<input type="range" data-pro="temp" data-default="0" min="-100" max="100" step="1" value="0"></label>
+            <label>色调<input type="range" data-pro="tint" data-default="0" min="-100" max="100" step="1" value="0"></label>
+            <label>饱和度<input type="range" data-pro="saturation" data-default="100" min="0" max="200" step="1" value="100"></label>
+            <label>色相（°）<input type="range" data-pro="hue" data-default="0" min="-180" max="180" step="1" value="0"></label>
+          </div>
+          <div class="pro-grid">
+            <div class="rgb">
+              <label>Lift R<input type="range" data-pro="liftR" data-default="0" min="-0.5" max="0.5" step="0.005" value="0"></label>
+              <label>Lift G<input type="range" data-pro="liftG" data-default="0" min="-0.5" max="0.5" step="0.005" value="0"></label>
+              <label>Lift B<input type="range" data-pro="liftB" data-default="0" min="-0.5" max="0.5" step="0.005" value="0"></label>
+              <label>Gamma R<input type="range" data-pro="gammaR" data-default="1" min="0.5" max="1.5" step="0.005" value="1"></label>
+              <label>Gamma G<input type="range" data-pro="gammaG" data-default="1" min="0.5" max="1.5" step="0.005" value="1"></label>
+              <label>Gamma B<input type="range" data-pro="gammaB" data-default="1" min="0.5" max="1.5" step="0.005" value="1"></label>
+              <label>Gain R<input type="range" data-pro="gainR" data-default="1" min="0.5" max="1.5" step="0.005" value="1"></label>
+              <label>Gain G<input type="range" data-pro="gainG" data-default="1" min="0.5" max="1.5" step="0.005" value="1"></label>
+              <label>Gain B<input type="range" data-pro="gainB" data-default="1" min="0.5" max="1.5" step="0.005" value="1"></label>
+            </div>
+          </div>
+          <p class="hint">专业调整作用在当前 LUT 之后；预览、单张导出与批量导出使用同一套参数。</p>
+        </details>
       </section>
 
       <section class="card control-panel" id="step3Panel">
@@ -694,20 +725,78 @@ function lookupChannel(c,n,v,k){
   return c[i0*3+k]+(c[i1*3+k]-c[i0*3+k])*f;
 }
 
+/* Resolve 风格专业调色：作用于 LUT 输出之后，参数集中、可复现 */
+function proDefaults(){
+  return {
+    enabled:false, exposure:0, contrast:0, pivot:0.5, temp:0, tint:0,
+    saturation:1, hue:0,
+    liftR:0, liftG:0, liftB:0,
+    gammaR:1, gammaG:1, gammaB:1,
+    gainR:1, gainG:1, gainB:1
+  };
+}
+function proIsActive(p){
+  if(!p||!p.enabled) return false;
+  return Math.abs(p.exposure)>1e-6 || Math.abs(p.contrast)>1e-6 ||
+    Math.abs(p.pivot-0.5)>1e-6 || Math.abs(p.temp)>1e-6 || Math.abs(p.tint)>1e-6 ||
+    Math.abs(p.saturation-1)>1e-6 || Math.abs(p.hue)>1e-6 ||
+    Math.abs(p.liftR)>1e-6 || Math.abs(p.liftG)>1e-6 || Math.abs(p.liftB)>1e-6 ||
+    Math.abs(p.gammaR-1)>1e-6 || Math.abs(p.gammaG-1)>1e-6 || Math.abs(p.gammaB-1)>1e-6 ||
+    Math.abs(p.gainR-1)>1e-6 || Math.abs(p.gainG-1)>1e-6 || Math.abs(p.gainB-1)>1e-6;
+}
+function hueRotateRGB(r,g,b,deg){
+  var a=deg*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a);
+  var y=0.2126*r+0.7152*g+0.0722*b;
+  var u=-0.168736*r-0.331264*g+0.5*b;
+  var v=0.5*r-0.418688*g-0.081312*b;
+  var u2=u*ca-v*sa, v2=u*sa+v*ca;
+  return [y+1.402*v2, y-0.344136*u2-0.714136*v2, y+1.772*u2];
+}
+function applyProGrade(r,g,b,p){
+  if(!p||!p.enabled) return [r,g,b];
+  // 曝光：在线性光域计算，避免 gamma 域里出现不自然高光。
+  var lin=srgbToLin(clamp01(r))*Math.pow(2,p.exposure);
+  r=clamp01(linToSrgb(lin));
+  lin=srgbToLin(clamp01(g))*Math.pow(2,p.exposure); g=clamp01(linToSrgb(lin));
+  lin=srgbToLin(clamp01(b))*Math.pow(2,p.exposure); b=clamp01(linToSrgb(lin));
+  // 色温 / 色调：近似 Resolve 的暖蓝与品绿偏移。
+  r += p.temp*0.22 + p.tint*0.08;
+  g -= p.tint*0.08;
+  b -= p.temp*0.18 + p.tint*0.04;
+  r=clamp01(r); g=clamp01(g); b=clamp01(b);
+  // 对比 / 轴心。
+  var con=1+p.contrast;
+  r=(r-p.pivot)*con+p.pivot; g=(g-p.pivot)*con+p.pivot; b=(b-p.pivot)*con+p.pivot;
+  r=clamp01(r); g=clamp01(g); b=clamp01(b);
+  // Primaries：Lift / Gamma / Gain。
+  r += p.liftR*(1-r); g += p.liftG*(1-g); b += p.liftB*(1-b);
+  r=Math.pow(clamp01(r),1/p.gammaR);
+  g=Math.pow(clamp01(g),1/p.gammaG);
+  b=Math.pow(clamp01(b),1/p.gammaB);
+  r=clamp01(r)*p.gainR; g=clamp01(g)*p.gainG; b=clamp01(b)*p.gainB;
+  // 饱和 / 色相。
+  var l=0.2126*r+0.7152*g+0.0722*b;
+  r=l+(r-l)*p.saturation; g=l+(g-l)*p.saturation; b=l+(b-l)*p.saturation;
+  var hsv=hueRotateRGB(r,g,b,p.hue);
+  return [clamp01(hsv[0]),clamp01(hsv[1]),clamp01(hsv[2])];
+}
+
 /* 对 RGBA 像素数组套 LUT（strength 0..1），返回新数组 */
-function applyLUT(src,w,h,lut,strength){
+function applyLUT(src,w,h,lut,strength,pro){
   var out=new Uint8ClampedArray(src.length);
   var s=strength, inv=1-s;
   var is1D=lut.is1D, n=lut.size, d=lut.is1D?lut.curve:lut.data;
+  var usePro=proIsActive(pro);
   for(var p=0;p<src.length;p+=4){
     var r=src[p]/255, g=src[p+1]/255, b=src[p+2]/255;
     var o=is1D
       ? [lookupChannel(d,n,r,0), lookupChannel(d,n,g,1), lookupChannel(d,n,b,2)]
       : lookup3D(d,n,r,g,b);
-    out[p]  =r*255*inv+o[0]*255*s;
-    out[p+1]=g*255*inv+o[1]*255*s;
-    out[p+2]=b*255*inv+o[2]*255*s;
-    out[p+3]=src[p+3];
+    r=r*inv+o[0]*s; g=g*inv+o[1]*s; b=b*inv+o[2]*s;
+    if(usePro){
+      var q=applyProGrade(r,g,b,pro); r=q[0]; g=q[1]; b=q[2];
+    }
+    out[p]=r*255; out[p+1]=g*255; out[p+2]=b*255; out[p+3]=src[p+3];
   }
   return out;
 }
@@ -800,8 +889,27 @@ function compileGL(){
     'precision highp float;\n'+
     'precision highp sampler2D; precision highp sampler3D;\n'+
     'uniform sampler2D uImg; uniform sampler3D uLut; uniform float uStrength;\n'+
+    'uniform int uProEnabled; uniform float uExposure,uContrast,uPivot,uTemp,uTint,uSaturation,uHue;\n'+
+    'uniform float uLiftR,uLiftG,uLiftB,uGammaR,uGammaG,uGammaB,uGainR,uGainG,uGainB;\n'+
     'in vec2 vUV; out vec4 frag;\n'+
-    'void main(){ vec4 c=texture(uImg,vUV); vec3 l=texture(uLut,clamp(c.rgb,0.0,1.0)).rgb; frag=vec4(mix(c.rgb,l,uStrength),c.a); }');
+    'vec3 srgbToLin(vec3 c){ return mix(c/12.92,pow((c+vec3(0.055))/1.055,vec3(2.4)),step(vec3(0.04045),c)); }\n'+
+    'vec3 linToSrgb(vec3 c){ return mix(c*12.92,1.055*pow(c,vec3(1.0/2.4))-0.055,step(vec3(0.0031308),c)); }\n'+
+    'vec3 hueRotate(vec3 c,float deg){ float a=deg*0.0174532925199433; float ca=cos(a),sa=sin(a);\n'+
+    '  float y=dot(c,vec3(0.2126,0.7152,0.0722));\n'+
+    '  float u=-0.168736*c.r-0.331264*c.g+0.5*c.b;\n'+
+    '  float v=0.5*c.r-0.418688*c.g-0.081312*c.b;\n'+
+    '  float u2=u*ca-v*sa, v2=u*sa+v*ca;\n'+
+    '  return vec3(y+1.402*v2,y-0.344136*u2-0.714136*v2,y+1.772*u2); }\n'+
+    'vec3 applyPro(vec3 c){\n'+
+    '  c=linToSrgb(srgbToLin(clamp(c,0.0,1.0))*pow(2.0,uExposure)); c=clamp(c,0.0,1.0);\n'+
+    '  c.r+=uTemp*0.22+uTint*0.08; c.g-=uTint*0.08; c.b-=uTemp*0.18+uTint*0.04; c=clamp(c,0.0,1.0);\n'+
+    '  c=(c-uPivot)*(1.0+uContrast)+uPivot; c=clamp(c,0.0,1.0);\n'+
+    '  vec3 lift=vec3(uLiftR,uLiftG,uLiftB); c+=lift*(1.0-c);\n'+
+    '  c=pow(clamp(c,0.0,1.0),1.0/vec3(uGammaR,uGammaG,uGammaB));\n'+
+    '  c*=vec3(uGainR,uGainG,uGainB);\n'+
+    '  float y=dot(c,vec3(0.2126,0.7152,0.0722)); c=mix(vec3(y),c,uSaturation);\n'+
+    '  return clamp(hueRotate(c,uHue),0.0,1.0); }\n'+
+    'void main(){ vec4 c=texture(uImg,vUV); vec3 l=texture(uLut,clamp(c.rgb,0.0,1.0)).rgb; frag=vec4(mix(c.rgb,l,uStrength),c.a); if(uProEnabled==1){ frag.rgb=applyPro(frag.rgb); } }');
   try{
     _prog=gl.createProgram();
     gl.attachShader(_prog,vs); gl.attachShader(_prog,fs);
@@ -816,7 +924,7 @@ function compileGL(){
     return true;
   }catch(e){ _gl=null; return false; }
 }
-function renderGL(canvas,imgCanvas,lut,strength,imgVersion){
+function renderGL(canvas,imgCanvas,lut,strength,imgVersion,pro){
   var gl=_gl;
   if(_glCanvas.width!==canvas.width||_glCanvas.height!==canvas.height){
     _glCanvas.width=canvas.width; _glCanvas.height=canvas.height;
@@ -858,6 +966,24 @@ function renderGL(canvas,imgCanvas,lut,strength,imgVersion){
   gl.uniform1i(gl.getUniformLocation(_prog,'uImg'),0);
   gl.uniform1i(gl.getUniformLocation(_prog,'uLut'),1);
   gl.uniform1f(gl.getUniformLocation(_prog,'uStrength'),strength);
+  var pu=pro||proDefaults();
+  gl.uniform1i(gl.getUniformLocation(_prog,'uProEnabled'),pu.enabled?1:0);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uExposure'),pu.exposure);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uContrast'),pu.contrast);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uPivot'),pu.pivot);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uTemp'),pu.temp);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uTint'),pu.tint);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uSaturation'),pu.saturation);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uHue'),pu.hue);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uLiftR'),pu.liftR);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uLiftG'),pu.liftG);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uLiftB'),pu.liftB);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uGammaR'),pu.gammaR);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uGammaG'),pu.gammaG);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uGammaB'),pu.gammaB);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uGainR'),pu.gainR);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uGainG'),pu.gainG);
+  gl.uniform1f(gl.getUniformLocation(_prog,'uGainB'),pu.gainB);
   gl.enableVertexAttribArray(0);
   gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
   gl.drawArrays(gl.TRIANGLES,0,3);
@@ -876,6 +1002,7 @@ var LUTCore={
   SGAMUT3CINE_TO_REC709:SGAMUT3CINE_TO_REC709, linToSrgb:linToSrgb, srgbToLin:srgbToLin,
   makeIdentity3D:makeIdentity3D, genLUT3D:genLUT3D, buildPresets:buildPresets,
   parseCube:parseCube, lookup3D:lookup3D, lookup1D:lookup1D, lookupChannel:lookupChannel, applyLUT:applyLUT,
+  proDefaults:proDefaults, proIsActive:proIsActive, applyProGrade:applyProGrade,
   crc32:crc32, strToBytes:strToBytes, dosDateTime:dosDateTime, makeZip:makeZip
 };
 
@@ -911,7 +1038,8 @@ function initUI(){
     img:null, imgVersion:0, workW:0, workH:0, origW:0, origH:0,
     lut:null, strength:1, view:'graded', split:0.5, overlay:'none',
     engine:'cpu', objectUrl:null, dragging:false, rendering:false,
-    batch:[], batchVersion:1, activeBatchIndex:-1, loadToken:0
+    batch:[], batchVersion:1, activeBatchIndex:-1, loadToken:0,
+    pro:proDefaults()
   };
 
   var presets=buildPresets();
@@ -1184,13 +1312,13 @@ function initUI(){
     var out=makeCanvas(w,h);
     if(!out) throw new Error('当前环境画布尺寸已达上限，无法创建输出图像');
     if(state.engine==='webgl2' && !lut.is1D){
-      try{ renderGL(out,src,lut,strength,0); out.__scaled=target.scaled; return out; }catch(e){ /* 降级 CPU */ }
+      try{ renderGL(out,src,lut,strength,0,state.pro); out.__scaled=target.scaled; return out; }catch(e){ /* 降级 CPU */ }
     }
     var ctx=out.getContext('2d',{willReadFrequently:true});
     var id=ctx.createImageData(w,h);
     var srcCtx=src.getContext('2d',{willReadFrequently:true});
     var input=srcCtx.getImageData(0,0,w,h);
-    var o=applyLUT(input.data,w,h,lut,strength);
+    var o=applyLUT(input.data,w,h,lut,strength,state.pro);
     id.data.set(o);
     ctx.putImageData(id,0,0);
     out.__scaled=target.scaled;
@@ -1614,6 +1742,30 @@ function initUI(){
     render();
   });
 
+  var proEnabled=$('proEnabled'), proReset=$('proReset');
+  proEnabled.addEventListener('change',function(){
+    state.pro.enabled=this.checked;
+    render();
+  });
+  document.querySelectorAll('#proPanel input[data-pro]').forEach(function(input){
+    input.addEventListener('input',function(){
+      var key=input.getAttribute('data-pro');
+      state.pro[key]=parseFloat(input.value);
+      if(!state.pro.enabled){ state.pro.enabled=true; proEnabled.checked=true; }
+      render();
+    });
+  });
+  proReset.addEventListener('click',function(){
+    var def=proDefaults();
+    for(var key in def){ state.pro[key]=def[key]; }
+    proEnabled.checked=false;
+    document.querySelectorAll('#proPanel input[data-pro]').forEach(function(input){
+      input.value=input.getAttribute('data-default');
+    });
+    render();
+    toast('专业调整已重置');
+  });
+
   toggleCompare.addEventListener('click',function(){
     if(state.view==='graded'){ state.view='split'; toggleCompare.textContent='对比：左右分割'; }
     else if(state.view==='split'){ state.view='splitV'; toggleCompare.textContent='对比：上下分割'; }
@@ -1793,14 +1945,14 @@ function initUI(){
     requestAnimationFrame(function(){
       renderQueued=false;
       var lut=state.lut, s=state.strength;
-      if(s<=0){ // 强度为 0：直接复制原图
+      if(s<=0 && !proIsActive(state.pro)){ // 无 LUT 且无专业调整：直接复制原图
         gradedCanvas.getContext('2d').clearRect(0,0,gradedCanvas.width,gradedCanvas.height);
         gradedCanvas.getContext('2d').drawImage(origCanvas,0,0);
         return;
       }
       if(state.engine==='webgl2' && !lut.is1D){
         try{
-          renderGL(gradedCanvas,origCanvas,lut,s,state.imgVersion);
+          renderGL(gradedCanvas,origCanvas,lut,s,state.imgVersion,state.pro);
           return;
         }catch(e){ window.__glErr=String(e&&e.message||e); state.engine='cpu'; engineInfo.textContent='渲染引擎：CPU 三线性插值（WebGL 出错已降级）'; }
       }
@@ -1815,7 +1967,7 @@ function initUI(){
       var step=0;
       (function nextBand(){
         var y0=step*band, y1=Math.min(h,y0+band);
-        var out=applyLUT(src.subarray(y0*w*4,y1*w*4),w,y1-y0,lut,s);
+        var out=applyLUT(src.subarray(y0*w*4,y1*w*4),w,y1-y0,lut,s,state.pro);
         imgData.data.set(out,y0*w*4);
         step++;
         if(step*band<h){ requestAnimationFrame(nextBand); }
