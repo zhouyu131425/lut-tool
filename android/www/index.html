@@ -1198,6 +1198,9 @@ function initUI(){
       origCanvas.width=state.workW; origCanvas.height=state.workH;
       gradedCanvas.width=state.workW; gradedCanvas.height=state.workH;
       origCanvas.getContext('2d').drawImage(img,0,0,state.workW,state.workH);
+      // 强制清掉 WebGL 层的图像纹理缓存；预览画布会被多张照片复用。
+      _imgSrc=null;
+      _imgVersion=-1;
       state.imgVersion++;
       state.img=img;
       photoThumb.src=url;
@@ -1715,10 +1718,12 @@ function initUI(){
           return;
         }catch(e){ window.__glErr=String(e&&e.message||e); state.engine='cpu'; engineInfo.textContent='渲染引擎：CPU 三线性插值（WebGL 出错已降级）'; }
       }
-      // CPU 路径（分块处理，避免卡 UI）
+      // CPU 路径：必须从原图画布读取像素；否则切换尺寸不同的照片时，
+      // 结果画布可能已被清空或仍保留上一张调色结果，导致预览异常。
       processing.classList.add('show');
-      var ctx=gradedCanvas.getContext('2d');
-      var imgData=ctx.getImageData(0,0,state.workW,state.workH);
+      var origCtx=origCanvas.getContext('2d', {willReadFrequently:true});
+      var ctx=gradedCanvas.getContext('2d', {willReadFrequently:true});
+      var imgData=origCtx.getImageData(0,0,state.workW,state.workH);
       var src=imgData.data, w=state.workW, h=state.workH;
       var band=Math.max(64,Math.floor(h/12));
       var step=0;
