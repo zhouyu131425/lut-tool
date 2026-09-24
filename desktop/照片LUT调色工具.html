@@ -761,7 +761,7 @@ function makeZip(entries){
 }
 
 /* ---- WebGL2 渲染（离屏 3D 纹理 + 硬件三线性，再回拷到显示画布） ---- */
-var _gl=null,_glCanvas=null,_prog=null,_imgTex=null,_lutTex=null,_imgSrc=null,_lutVersion=-1;
+var _gl=null,_glCanvas=null,_prog=null,_imgTex=null,_lutTex=null,_imgSrc=null,_imgVersion=-1,_lutVersion=-1;
 function compileGL(){
   try{
     _glCanvas=document.createElement('canvas');
@@ -799,7 +799,7 @@ function compileGL(){
     return true;
   }catch(e){ _gl=null; return false; }
 }
-function renderGL(canvas,imgCanvas,lut,strength){
+function renderGL(canvas,imgCanvas,lut,strength,imgVersion){
   var gl=_gl;
   if(_glCanvas.width!==canvas.width||_glCanvas.height!==canvas.height){
     _glCanvas.width=canvas.width; _glCanvas.height=canvas.height;
@@ -808,7 +808,7 @@ function renderGL(canvas,imgCanvas,lut,strength){
   gl.useProgram(_prog);
 
   // 图像纹理（仅当源画布变化时重传：预览传同一画布、批量每张传新画布）
-  if(imgCanvas!==_imgSrc){
+  if(imgCanvas!==_imgSrc || _imgVersion!==imgVersion){
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D,_imgTex);
     gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,gl.RGBA,gl.UNSIGNED_BYTE,imgCanvas);
@@ -817,6 +817,7 @@ function renderGL(canvas,imgCanvas,lut,strength){
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
     _imgSrc=imgCanvas;
+    _imgVersion=imgVersion;
   }
   // LUT 3D 纹理（仅当 LUT 变化时重传）
   if(!lut.is1D && lut._v!==_lutVersion){
@@ -1102,7 +1103,7 @@ function initUI(){
     src.getContext('2d').drawImage(img,0,0,w,h);
     var out=document.createElement('canvas'); out.width=w; out.height=h;
     if(state.engine==='webgl2' && !lut.is1D){
-      try{ renderGL(out,src,lut,strength); return out; }catch(e){ /* 降级 CPU */ }
+      try{ renderGL(out,src,lut,strength,0); return out; }catch(e){ /* 降级 CPU */ }
     }
     var ctx=out.getContext('2d');
     var id=ctx.getImageData(0,0,w,h);
@@ -1710,7 +1711,7 @@ function initUI(){
       }
       if(state.engine==='webgl2' && !lut.is1D){
         try{
-          renderGL(gradedCanvas,origCanvas,lut,s);
+          renderGL(gradedCanvas,origCanvas,lut,s,state.imgVersion);
           return;
         }catch(e){ window.__glErr=String(e&&e.message||e); state.engine='cpu'; engineInfo.textContent='渲染引擎：CPU 三线性插值（WebGL 出错已降级）'; }
       }
