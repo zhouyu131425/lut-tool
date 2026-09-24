@@ -27,18 +27,18 @@ body{
 .topbar h1{font-size:20px;font-weight:700;letter-spacing:.3px}
 .topbar p{font-size:13px;color:var(--muted);margin-top:2px}
 .badge{font-size:12px;color:#e8a73f;border:1px solid rgba(242,163,60,.45);border-radius:999px;padding:3px 10px;white-space:nowrap}
-/* ===== 布局：预览在上，1/2/3 控制在中，说明菜单在下 ===== */
-.layout{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"stage" "controls" "notes";gap:18px;align-items:start}
-.stage{grid-area:stage;min-width:0}
-.controls{grid-area:controls;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start;min-width:0}
-.stage-footer{grid-area:notes;min-width:0}
+/* ===== 布局：预览在上，分段控制条在下 ===== */
+.layout{display:flex;flex-direction:column;gap:14px;align-items:stretch}
+.stage{width:100%}
+.control-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px}
+.control-tab{position:relative;display:flex;align-items:center;justify-content:center;gap:7px;padding:9px 8px;border-radius:10px;border:1px solid transparent;background:transparent;color:var(--muted);font-size:13px;font-weight:600;transition:all .12s}
+.control-tab .step{width:20px;height:20px;font-size:12px}
+.control-tab:hover{color:var(--text);background:var(--panel2)}
+.control-tab.active{color:var(--accent-hi);background:rgba(242,163,60,.12);border-color:rgba(242,163,60,.38)}
+.control-panels{width:100%}
+.control-panel{display:none}
+.control-panel.active{display:block}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:0}
-details.card>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px}
-details.card>summary::-webkit-details-marker{display:none}
-details.card>summary h2{margin-bottom:0}
-details.card>summary::after{content:"▾";color:var(--muted);font-size:13px;line-height:1}
-details.card[open]>summary::after{content:"▴"}
-details.card:not([open])>*:not(summary){display:none!important}
 .card h2{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .step{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#14161b;font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
 .card h3{font-size:13px;color:var(--muted);font-weight:600;margin-bottom:8px}
@@ -196,9 +196,9 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
   .controls{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:920px){
-  .controls{grid-template-columns:1fr}
+  .control-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
   .viewer{height:clamp(260px,48vh,520px)}
-  .stage .notes ul{grid-template-columns:1fr}
+  .notes ul{grid-template-columns:1fr}
 }
 @media (max-width:520px){
   .app{padding:12px 12px 30px}
@@ -234,13 +234,33 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
   </header>
 
   <main class="layout">
+    <section class="stage">
+      <div class="viewer" id="viewer">
+        <div class="cliplayer" id="clipOrig"><canvas id="origCanvas"></canvas></div>
+        <div class="cliplayer" id="clipGraded"><canvas id="gradedCanvas"></canvas></div>
+        <div class="vbadge left" id="badgeLeft">原图</div>
+        <div class="vbadge right amber" id="badgeRight">效果</div>
+        <div class="overlay" id="overlay"></div>
+        <div class="dvline" id="dvLine"></div>
+        <div class="processing" id="processing">处理中…</div>
+        <div class="empty-state" id="emptyState">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="8.8" cy="10" r="1.6"/><path d="M3 17l5-4.4 3.4 3 4.4-4.6 5 5"/></svg>
+          <p>上传照片后，这里显示调色前后对比</p>
+        </div>
+      </div>
+      <div class="stage-meta" id="stageMeta"></div>
+    </section>
 
-    <!-- ===== 左侧控制面板 ===== -->
-    <aside class="controls">
+    <nav class="control-tabs" role="tablist" aria-label="操作面板">
+      <button type="button" class="control-tab active" data-panel="step1Panel"><span class="step">1</span>上传照片</button>
+      <button type="button" class="control-tab" data-panel="step2Panel"><span class="step">2</span>选择 LUT</button>
+      <button type="button" class="control-tab" data-panel="step3Panel"><span class="step">3</span>强度与导出</button>
+      <button type="button" class="control-tab" data-panel="notesPanel">菜单</button>
+    </nav>
 
-      <!-- 1 上传照片 -->
-      <details class="card" open>
-        <summary><h2><span class="step">1</span>上传照片</h2></summary>
+    <aside class="control-panels">
+      <section class="card control-panel active" id="step1Panel">
+        <h2><span class="step">1</span>上传照片</h2>
         <div class="dropzone" id="photoDrop">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="8.8" cy="10" r="1.6"/><path d="M3 17l5-4.4 3.4 3 4.4-4.6 5 5"/></svg>
           <p>点击选择或拖入照片（可多选）</p>
@@ -270,11 +290,10 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
           <button class="btn primary" id="batchExport" type="button" disabled>批量导出 ZIP（原分辨率 PNG）</button>
           <p class="hint" id="batchProgress"></p>
         </div>
-      </details>
+      </section>
 
-      <!-- 2 选择 LUT -->
-      <details class="card" id="step2Panel">
-        <summary><h2><span class="step">2</span>选择 LUT</h2></summary>
+      <section class="card control-panel" id="step2Panel">
+        <h2><span class="step">2</span>选择 LUT</h2>
         <div class="preset-grid" id="presetGrid"></div>
         <div class="lut-groups" id="lutGroups" hidden></div>
         <div class="divider"></div>
@@ -294,11 +313,10 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
           </div>
         </div>
         <p class="lut-desc" id="lutDesc"></p>
-      </details>
+      </section>
 
-      <!-- 3 强度与导出 -->
-      <details class="card" id="step3Panel">
-        <summary><h2><span class="step">3</span>强度与导出</h2></summary>
+      <section class="card control-panel" id="step3Panel">
+        <h2><span class="step">3</span>强度与导出</h2>
         <div class="row">
           <label for="strength">LUT 强度</label>
           <input type="range" id="strength" min="0" max="100" value="100">
@@ -318,31 +336,10 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
         </div>
         <button class="btn primary" id="download" type="button" disabled>下载调色后的照片（PNG · 原分辨率）</button>
         <p class="hint" id="engineInfo"></p>
-      </details>
+      </section>
 
-    </aside>
-
-    <!-- ===== 右侧预览 ===== -->
-    <section class="stage">
-      <div class="viewer" id="viewer">
-        <div class="cliplayer" id="clipOrig"><canvas id="origCanvas"></canvas></div>
-        <div class="cliplayer" id="clipGraded"><canvas id="gradedCanvas"></canvas></div>
-        <div class="vbadge left" id="badgeLeft">原图</div>
-        <div class="vbadge right amber" id="badgeRight">效果</div>
-        <div class="overlay" id="overlay"></div>
-        <div class="dvline" id="dvLine"></div>
-        <div class="processing" id="processing">处理中…</div>
-        <div class="empty-state" id="emptyState">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="8.8" cy="10" r="1.6"/><path d="M3 17l5-4.4 3.4 3 4.4-4.6 5 5"/></svg>
-          <p>上传照片后，这里显示调色前后对比</p>
-        </div>
-      </div>
-    </section>
-
-    <div class="stage-footer">
-      <div class="stage-meta" id="stageMeta"></div>
-      <details class="card notes" id="notesPanel">
-        <summary>菜单 · 说明与无损导出</summary>
+      <section class="card control-panel notes" id="notesPanel">
+        <h2>菜单 · 说明与无损导出</h2>
         <ul>
           <li>预览会使用轻量尺寸保证响应速度；单张和批量导出均按照片原始分辨率处理，并输出 PNG 无损格式。</li>
           <li>如果浏览器 / 系统画布不支持超大原图，会自动使用可用的最高分辨率，避免静默降质。</li>
@@ -351,8 +348,8 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
           <li>支持 HEIC / HEIF / ProRAW（DNG）识别提示；RAW 请用 macOS App 版打开（内置解码）。</li>
           <li>批量导出 ZIP、自定义 .cube、LUT 分组与备份全部本地完成，不会上传任何照片。</li>
         </ul>
-      </details>
-    </div>
+      </section>
+    </aside>
   </main>
 </div>
 
@@ -920,10 +917,26 @@ function initUI(){
   var presets=buildPresets();
   state.lut=presets[0];
 
-  // 明确初始化折叠状态，避免 WebKit/系统状态导致默认展开。
-  $('step2Panel').open=false;
-  $('step3Panel').open=false;
-  $('notesPanel').open=false;
+  // 分段控制条：同一时间只显示一个面板，减少滚动和视觉拥挤。
+  function activateControlPanel(id){
+    var tabs=document.querySelectorAll('.control-tab');
+    var panels=document.querySelectorAll('.control-panel');
+    for(var i=0;i<tabs.length;i++){
+      var tab=tabs[i];
+      tab.classList.toggle('active',tab.getAttribute('data-panel')===id);
+    }
+    for(var j=0;j<panels.length;j++){
+      var panel=panels[j];
+      panel.classList.toggle('active',panel.id===id);
+    }
+  }
+  var controlTabs=document.querySelectorAll('.control-tab');
+  for(var ci=0;ci<controlTabs.length;ci++){
+    controlTabs[ci].addEventListener('click',function(){
+      activateControlPanel(this.getAttribute('data-panel'));
+    });
+  }
+  activateControlPanel('step1Panel');
 
   /* 引擎检测 */
   state.engine=(typeof document!=='undefined' && compileGL())?'webgl2':'cpu';
