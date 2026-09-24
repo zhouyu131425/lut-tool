@@ -87,7 +87,7 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
 .stage{min-width:0}
 .viewer{
   position:relative;background:#0a0c10;border:1px solid var(--line);border-radius:var(--radius);
-  overflow:hidden;min-height:340px;aspect-ratio:4/3;max-height:78vh;width:100%;
+  overflow:hidden;width:100%;height:clamp(320px,58vh,720px);
 }
 .viewer canvas{position:absolute;width:auto;height:auto;display:none;max-width:none;max-height:none}
 .viewer.hasimg canvas{display:block}
@@ -118,10 +118,16 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
 .ov-svg{position:absolute;overflow:visible;pointer-events:none}
 .processing{position:absolute;inset:0;background:rgba(10,12,16,.55);display:none;align-items:center;justify-content:center;z-index:7;font-size:13px;color:#dfe3ea;letter-spacing:1px}
 .processing.show{display:flex}
-.stage-meta{font-size:12px;color:#6d7480;margin-top:8px;display:flex;gap:14px;flex-wrap:wrap}
+.stage-footer{margin-top:10px}
+.stage-meta{font-size:12px;color:#6d7480;display:flex;gap:14px;flex-wrap:wrap}
 .stage-meta b{color:var(--muted);font-weight:600}
-.stage .notes{margin-top:14px;margin-bottom:0}
-.stage .notes ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:22px}
+.stage .notes{margin-top:10px;margin-bottom:0;padding:12px 14px}
+.stage .notes summary{display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-size:14px;font-weight:700;list-style:none}
+.stage .notes summary::-webkit-details-marker{display:none}
+.stage .notes summary::after{content:"+";font-size:18px;color:var(--muted);line-height:1}
+.stage .notes[open] summary::after{content:"–"}
+.stage .notes ul{margin-top:12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 22px}
+.stage .notes li{margin-bottom:0}
 /* ===== 批量队列 ===== */
 .batch-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
 .batch-nav{display:flex;gap:6px;align-items:center;flex:0 0 auto}
@@ -179,7 +185,7 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
 /* ===== 响应式 ===== */
 @media (max-width:920px){
   .layout{grid-template-columns:1fr}
-  .viewer{aspect-ratio:4/3}
+  .viewer{height:clamp(260px,48vh,520px)}
   .stage .notes ul{grid-template-columns:1fr}
 }
 @media (max-width:520px){
@@ -249,7 +255,7 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
           </div>
           <p class="hint" style="margin:-2px 0 8px">点击队列中的照片可切换预览。</p>
           <div class="batch-list" id="batchList"></div>
-          <button class="btn primary" id="batchExport" type="button" disabled>批量导出 ZIP（套用当前 LUT + 强度）</button>
+          <button class="btn primary" id="batchExport" type="button" disabled>批量导出 ZIP（原分辨率 PNG）</button>
           <p class="hint" id="batchProgress"></p>
         </div>
       </section>
@@ -298,7 +304,7 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
             <option value="safe">安全框</option>
           </select>
         </div>
-        <button class="btn primary" id="download" type="button" disabled>下载调色后的照片（PNG）</button>
+        <button class="btn primary" id="download" type="button" disabled>下载调色后的照片（PNG · 原分辨率）</button>
         <p class="hint" id="engineInfo"></p>
       </section>
 
@@ -319,19 +325,20 @@ input[type=range]{flex:1;accent-color:var(--accent);height:4px}
           <p>上传照片后，这里显示调色前后对比</p>
         </div>
       </div>
-      <div class="stage-meta" id="stageMeta"></div>
-      <!-- 说明（放在预览画面下方，避免左栏过长影响窗口布局） -->
-      <section class="card notes" id="notesPanel">
-        <h3>说明</h3>
-        <ul>
-          <li>内置「S-Log3 → Rec.709/sRGB」按索尼官方 S-Log3 公式与 S-Gamut3.Cine 色域矩阵生成，属技术性还原；其余内置风格为程序生成的风格化近似，并非索尼官方 LUT。</li>
-          <li>富士胶片模拟（Classic Neg./Classic Chrome/Reala Ace/Velvia/ASTIA/PROVIA/ETERNA）基于富士官方 F-Log2C 3D-LUT 色彩科学，按官方 F-Log2C 编码公式复合为照片（sRGB/Rec.709）可直接套用的内置预设；Nostalgic Neg. 官方暂未随 LUT 发布。</li>
-          <li>针对苹果手机：支持 HEIC / HEIF / ProRAW（DNG）识别与提示，「iPhone 通透」预设面向 iPhone 出片优化；RAW 请用 macOS App 版打开（内置解码）。</li>
-          <li>支持一次选择多张照片（或拖入多个文件）批量导出 ZIP，全部套用当前 LUT 与强度，本地打包、不上传。</li>
-          <li>自定义 .cube 支持 3D（17/33/65 点）与 1D 两种格式，含 TITLE / DOMAIN_MIN / DOMAIN_MAX。</li>
-          <li>全部处理都在浏览器本地完成，不会上传任何照片。</li>
-        </ul>
-      </section>
+      <div class="stage-footer">
+        <div class="stage-meta" id="stageMeta"></div>
+        <details class="card notes" id="notesPanel">
+          <summary>说明 · 无损导出与本地处理</summary>
+          <ul>
+            <li>预览会使用轻量尺寸保证响应速度；单张和批量导出均按照片原始分辨率处理，并输出 PNG 无损格式。</li>
+            <li>如果浏览器 / 系统画布不支持超大原图，会自动使用可用的最高分辨率，避免静默降质。</li>
+            <li>内置「S-Log3 → Rec.709/sRGB」按索尼官方公式与 S-Gamut3.Cine 色域矩阵生成，属技术性还原；其余内置风格为程序生成的风格化近似，并非索尼官方 LUT。</li>
+            <li>富士胶片模拟基于官方 F-Log2C 3D-LUT 色彩科学复合构建；Nostalgic Neg. 官方暂未随 LUT 发布。</li>
+            <li>支持 HEIC / HEIF / ProRAW（DNG）识别提示；RAW 请用 macOS App 版打开（内置解码）。</li>
+            <li>批量导出 ZIP、自定义 .cube、LUT 分组与备份全部本地完成，不会上传任何照片。</li>
+          </ul>
+        </details>
+      </div>
     </section>
   </main>
 </div>
@@ -1095,20 +1102,67 @@ function initUI(){
     }
   }
 
-  /* 单张处理：任意 Image -> 调色后的 canvas（预览与批量共用同一套引擎） */
-  function processImageToCanvas(img,lut,strength){
-    var scale=Math.min(1,2400/Math.max(img.naturalWidth,img.naturalHeight));
-    var w=Math.max(2,Math.round(img.naturalWidth*scale)), h=Math.max(2,Math.round(img.naturalHeight*scale));
-    var src=document.createElement('canvas'); src.width=w; src.height=h;
-    src.getContext('2d').drawImage(img,0,0,w,h);
-    var out=document.createElement('canvas'); out.width=w; out.height=h;
-    if(state.engine==='webgl2' && !lut.is1D){
-      try{ renderGL(out,src,lut,strength,0); return out; }catch(e){ /* 降级 CPU */ }
+  /* 创建可用画布；浏览器会静默拒绝超大画布，所以必须做像素级探测 */
+  function makeCanvas(w,h){
+    try{
+      var c=document.createElement('canvas');
+      c.width=w; c.height=h;
+      if(c.width!==w||c.height!==h) return null;
+      var ctx=c.getContext('2d',{willReadFrequently:true});
+      if(!ctx) return null;
+      ctx.fillStyle='#ff0000';
+      ctx.fillRect(0,0,1,1);
+      var d=ctx.getImageData(0,0,1,1).data;
+      if(!d || d[0]!==255 || d[3]!==255) return null;
+      return c;
+    }catch(e){ return null; }
+  }
+
+  /* 优先使用原始分辨率；仅当浏览器/系统画布硬性拒绝时才逐级降档 */
+  function resolveExportCanvas(img){
+    var w=img.naturalWidth, h=img.naturalHeight;
+    var c=makeCanvas(w,h);
+    if(c) return {canvas:c,w:w,h:h,scaled:false};
+    var limits=[
+      {side:8192,pixels:64*1024*1024},
+      {side:6144,pixels:36*1024*1024},
+      {side:4096,pixels:16.7*1024*1024},
+      {side:2400,pixels:8*1024*1024}
+    ];
+    for(var i=0;i<limits.length;i++){
+      var scale=Math.min(
+        1,
+        limits[i].side/Math.max(w,h),
+        Math.sqrt(limits[i].pixels/(w*h))
+      );
+      var cw=Math.max(2,Math.round(w*scale));
+      var ch=Math.max(2,Math.round(h*scale));
+      c=makeCanvas(cw,ch);
+      if(c) return {canvas:c,w:cw,h:ch,scaled:true};
     }
-    var ctx=out.getContext('2d');
-    var id=ctx.getImageData(0,0,w,h);
-    var o=applyLUT(id.data,w,h,lut,strength);
-    ctx.putImageData(new ImageData(o,w,h),0,0);
+    return null;
+  }
+
+  /* 单张处理：任意 Image -> 调色后的 canvas（导出使用原始分辨率） */
+  function processImageToCanvas(img,lut,strength){
+    var target=resolveExportCanvas(img);
+    if(!target) throw new Error('当前环境画布尺寸已达上限，无法保留原始分辨率');
+    var w=target.w, h=target.h;
+    var src=target.canvas;
+    src.getContext('2d').drawImage(img,0,0,w,h);
+    var out=makeCanvas(w,h);
+    if(!out) throw new Error('当前环境画布尺寸已达上限，无法创建输出图像');
+    if(state.engine==='webgl2' && !lut.is1D){
+      try{ renderGL(out,src,lut,strength,0); out.__scaled=target.scaled; return out; }catch(e){ /* 降级 CPU */ }
+    }
+    var ctx=out.getContext('2d',{willReadFrequently:true});
+    var id=ctx.createImageData(w,h);
+    var srcCtx=src.getContext('2d',{willReadFrequently:true});
+    var input=srcCtx.getImageData(0,0,w,h);
+    var o=applyLUT(input.data,w,h,lut,strength);
+    id.data.set(o);
+    ctx.putImageData(id,0,0);
+    out.__scaled=target.scaled;
     return out;
   }
   function loadImgFromUrl(url){
@@ -1127,7 +1181,7 @@ function initUI(){
     batchExport.disabled=true;
     var lut=state.lut, strength=state.strength;
     var nm=safeName(lut.title||lut.name);
-    var entries=[], okCount=0;
+    var entries=[], okCount=0, scaledCount=0;
     (async function(){
       batchProgress.textContent='准备导出 '+state.batch.length+' 张…';
       for(var i=0;i<state.batch.length;i++){
@@ -1137,6 +1191,7 @@ function initUI(){
         try{
           var img=await loadImgFromUrl(item.objectUrl);
           var cv=processImageToCanvas(img,lut,strength);
+          if(cv.__scaled) scaledCount++;
           var blob=await new Promise(function(res,rej){ cv.toBlob(function(b){ b?res(b):rej(new Error('PNG 编码失败')); },'image/png'); });
           var base=item.name.replace(/\.[^.]+$/,'');
           entries.push({ name:base+'_'+nm+'_'+Math.round(strength*100)+'%.png', blob:blob });
@@ -1146,7 +1201,7 @@ function initUI(){
         }
         await nextTick();
       }
-      batchProgress.textContent='完成 '+okCount+' / '+state.batch.length+'，正在打包 ZIP…';
+      batchProgress.textContent='完成 '+okCount+' / '+state.batch.length+'，正在打包 ZIP…'+(scaledCount?'（'+scaledCount+' 张因画布上限降档）':'');
       try{
         var zip=await makeZip(entries);
         var a=document.createElement('a');
@@ -1205,14 +1260,14 @@ function initUI(){
       state.img=img;
       photoThumb.src=url;
       photoName.textContent=file.name;
-      photoMeta.textContent=state.origW+'×'+state.origH+'px → 处理 '+state.workW+'×'+state.workH+'px';
+      photoMeta.textContent='原图 '+state.origW+'×'+state.origH+'px · 预览 '+state.workW+'×'+state.workH+'px · 导出原尺寸';
       photoInfo.hidden=false;
       photoDrop.style.display='none';
       emptyState.style.display='none';
       viewer.classList.add('hasimg');
       layoutCanvases();
       download.disabled=false;
-      stageMeta.innerHTML='<span>原图 <b>'+state.origW+'×'+state.origH+'</b></span><span>处理 <b>'+state.workW+'×'+state.workH+'</b></span><span>引擎 <b>'+(state.engine==='webgl2'?'WebGL2':'CPU')+'</b></span><span>处理全部在本地完成</span>';
+      stageMeta.innerHTML='<span>原图 <b>'+state.origW+'×'+state.origH+'</b></span><span>预览 <b>'+state.workW+'×'+state.workH+'</b></span><span>导出 <b>原分辨率 PNG</b></span><span>引擎 <b>'+(state.engine==='webgl2'?'WebGL2':'CPU')+'</b></span><span>本地处理</span>';
       applyView();
       render();
       processing.classList.remove('show');
@@ -1740,19 +1795,33 @@ function initUI(){
 
   /* ---------- 下载 ---------- */
   download.addEventListener('click',function(){
-    if(!state.img) return;
+    if(!state.img || download.disabled) return;
+    download.disabled=true;
+    processing.textContent='无损导出中…';
     processing.classList.add('show');
-    gradedCanvas.toBlob(function(blob){
-      processing.classList.remove('show');
-      if(!blob){ toast('导出失败，请重试',true); return; }
-      var a=document.createElement('a');
-      var nm=(state.lut.title||state.lut.name).replace(/[\\/:*?"<>|]/g,'_');
-      a.href=URL.createObjectURL(blob);
-      a.download='调色_'+nm+'_'+Math.round(state.strength*100)+'%.png';
-      document.body.appendChild(a); a.click();
-      setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },400);
-      toast('已导出 PNG');
-    },'image/png');
+    setTimeout(function(){
+      try{
+        var cv=processImageToCanvas(state.img,state.lut,state.strength);
+        cv.toBlob(function(blob){
+          processing.classList.remove('show');
+          processing.textContent='处理中…';
+          download.disabled=false;
+          if(!blob){ toast('导出失败，请重试',true); return; }
+          var a=document.createElement('a');
+          var nm=(state.lut.title||state.lut.name).replace(/[\\/:*?"<>|]/g,'_');
+          a.href=URL.createObjectURL(blob);
+          a.download='调色_'+nm+'_'+Math.round(state.strength*100)+'%.png';
+          document.body.appendChild(a); a.click();
+          setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },400);
+          toast(cv.__scaled?'已导出 PNG（受画布上限轻微降档）':'已导出原分辨率 PNG');
+        },'image/png');
+      }catch(e){
+        processing.classList.remove('show');
+        processing.textContent='处理中…';
+        download.disabled=false;
+        toast(e && e.message ? e.message : '无损导出失败',true);
+      }
+    },30);
   });
 
   /* 初始显示 */
